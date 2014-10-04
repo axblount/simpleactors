@@ -34,7 +34,7 @@
          classpathref="classpath" />
   </target>
 
-  <target name="doc" />
+  <target name="doc">
     <javadoc sourcepath="${src.dir}" destdir="${doc.dir}" />
   </target>
 

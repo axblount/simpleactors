@@ -4,19 +4,14 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.util.concurrent.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 /**
  * An {@link org.axblount.simpleactors.ActorSystem} is the context in which actors run.
  * Each actor belongs to exactly one actor system.
- * <p>
- * TODO: research for remote actors
- * <ul>
- *     <li>{@link java.net.URLClassLoader}</li>
- *     <li>How to serialize {@link java.lang.reflect.Method}</li>
- * </ul>
  */
 public class ActorSystem {
     /**
@@ -36,30 +31,19 @@ public class ActorSystem {
     private static final int DEFAULT_PORT = 12321;
 
     /**
-     * Each time a new actor is spawned it is given an id unique to this {@link ActorSystem}.
+     * Each time a new actor is spawned it is given an actor unique to this {@link ActorSystem}.
      */
     private AtomicInteger nextId;
 
     /**
-     * A map of all running {@link Actor}s indexed by id.
+     * A map of all running {@link Actor}s indexed by actor.
      */
-    private ConcurrentMap<Integer, Actor> actors;
+    private ConcurrentMap<Integer, Actor<?>> actors;
 
     /**
-     * This queue stores all messages sent to {@link Actor}s running on this {@link ActorSystem}.
+     * A map of all {@link Actor}s to the threads they run in.
      */
-    private BlockingQueue<Mail> mailbox;
-
-    /**
-     * The {@link java.util.concurrent.ExecutorService} responsible for running the {@link Actor}s.
-     */
-    private ExecutorService executorService;
-
-    /**
-     * The {@link Thread} responsible for dispatching incoming mail to {@link Actor}s.
-     * The thread runs the private method {@link #mailDispatcher()}.
-     */
-    private Thread mailDispatcherThread;
+    private ConcurrentMap<Actor<?>, Dispatcher> dispatchThreads;
 
     /**
      * Create a new {@link ActorSystem}.
@@ -71,12 +55,7 @@ public class ActorSystem {
         this.port = port;
         nextId = new AtomicInteger(1000);
         actors = new ConcurrentHashMap<>();
-        mailbox = new LinkedBlockingQueue<>();
-
-        executorService = Executors.newCachedThreadPool(this::threadFactory);
-
-        mailDispatcherThread = new Thread(this::mailDispatcher);
-        mailDispatcherThread.start();
+        dispatchThreads = new ConcurrentHashMap<>();
     }
 
     public ActorSystem(String name) {
@@ -95,17 +74,17 @@ public class ActorSystem {
      * An instance of this class is supplied to newly constructed proxy references.
      */
     private class LocalRefProxyHandler implements InvocationHandler {
-        private final int id;
-        private LocalRefProxyHandler(int id) { this.id = id; }
+        private final Actor<?> actor;
+        private LocalRefProxyHandler(Actor<?> actor) { this.actor = actor; }
         public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
             // if we are trying to print out the reference, do it now.
             if (method.getName() == "toString" && method.getParameterCount() == 0) {
-                return String.format("<%s@%s>", id, getName());
+                return String.format("<%s@%s>", actor, getName());
             }
             // otherwise we are trying to send an message. place it in the mailbox
-            Mail m = new Mail(id, method, args);
-            System.out.println(m);
-            return mailbox.offer(m);
+            Mail m = new Mail(actor, method, args);
+            Dispatcher dispatcher = getDispatcher(actor);
+            return dispatcher.addMail(m);
         }
     }
 
@@ -131,12 +110,12 @@ public class ActorSystem {
         Class<?> proxyCls = Proxy.getProxyClass(refType.getClassLoader(), refType);
 
         try {
-            int id = nextId.getAndIncrement();
-
-            // create a new instance of the proxy class with a new InvocationHandler for this actor's id
+            // create a new instance of the proxy class with a new InvocationHandler for this actor's actor
             @SuppressWarnings("unchecked")
             REF ref = (REF)proxyCls.getConstructor(InvocationHandler.class)
-                               .newInstance(new LocalRefProxyHandler(id));
+                               .newInstance(new LocalRefProxyHandler(actor));
+
+            int id = nextId.getAndIncrement();
             actors.put(id, actor);
             actor.bind(this, ref);
             return ref;
@@ -147,44 +126,14 @@ public class ActorSystem {
     }
 
     /**
-     * Shutdown this {@link ActorSystem}. Pending mail will be discarded.
+     * Shutdown the ActorSystem.
      */
     public void shutdown() {
-        try {
-            mailDispatcherThread.interrupt();
-            executorService.shutdown();
-
-            mailDispatcherThread.join();
-            executorService.awaitTermination(5, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        //TODO
     }
 
-    /**
-     * This is used a reference to run the {@link #mailDispatcherThread}.
-     */
-    private void mailDispatcher() {
-        while (!Thread.currentThread().isInterrupted()) {
-            try {
-                Mail m = mailbox.take();
-                Actor<?> actor = actors.get(m.id);
-                // TODO:
-                // this seems very inefficient
-                // I need to figure out how to sending throwing lambdas to the executor service.
-                executorService.execute(() -> {
-                    try {
-                        m.method.invoke(actor, m.args);
-                    } catch (IllegalAccessException e) {
-                        e.printStackTrace();
-                    } catch (InvocationTargetException e) {
-                        actor.exceptionHandler(e);
-                    }
-                });
-            } catch (InterruptedException e) {
-                return;
-            }
-        }
+    /*package*/ Actor<?> getActorById(int id) {
+        return actors.get(id);
     }
 
     private Thread threadFactory(Runnable r) {
@@ -194,6 +143,18 @@ public class ActorSystem {
     }
 
     private void uncaughtException(Thread t, Throwable e) {
+        System.out.println("***The actor system <" + name + "> has caught an error***");
         e.printStackTrace();
+    }
+
+
+    private Dispatcher getDispatcher(Actor<?> actor) {
+        Dispatcher dispatcher = dispatchThreads.get(actor);
+        if (dispatcher == null || !dispatcher.getThread().isAlive()) {
+            // thread per actor, easy peasy
+            dispatcher = new Dispatcher(this::threadFactory);
+            dispatchThreads.put(actor, dispatcher);
+        }
+        return dispatcher;
     }
 }

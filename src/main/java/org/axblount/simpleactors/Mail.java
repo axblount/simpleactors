@@ -1,27 +1,36 @@
 package org.axblount.simpleactors;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.stream.Stream;
 
 /**
- * TODO: make this serializable
+ *
  */
 public class Mail {
-    public final int id;
-    public final Method method;
-    public final Object[] args;
+    public final Actor<?> actor;
+    public final MethodCall call;
 
-    public Mail(int id, Method method, Object[] args) {
-        this.id = id;
-        this.method = method;
-        if (args != null)
-            this.args = args;
-        else
-            this.args = new Object[0];
+    public Mail(Actor<?> actor, MethodCall call) {
+        this.actor = actor;
+        this.call = call;
+    }
+
+    public Mail(Actor<?> actor, Method m, Object[] args) {
+        this(actor, new MethodCall(m, args));
+    }
+
+    public Object deliver() {
+        try {
+            return call.invoke(actor);
+        } catch (InvocationTargetException e) {
+            actor.exceptionHandler(e.getCause());
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     public String toString() {
-        String[] sargs = Stream.of(args).map(Object::toString).toArray(String[]::new);
-        return method.getName() + "(" + String.join(",", sargs) + ") -> " + id;
+        return call + " -> " + actor;
     }
 }
