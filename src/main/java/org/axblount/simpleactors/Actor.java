@@ -1,11 +1,5 @@
 package org.axblount.simpleactors;
 
-import java.lang.reflect.Method;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-
 /**
  * An abstract actor.
  *
@@ -23,11 +17,6 @@ public abstract class Actor<REF> {
      * A reference to this actor.
      */
     private REF self = null;
-
-    /**
-     *
-     */
-    private BlockingQueue<Mail> mailbox = new LinkedBlockingQueue<>();
 
     /**
      * The {@link ActorSystem} this {@link Actor} is running inside of.
