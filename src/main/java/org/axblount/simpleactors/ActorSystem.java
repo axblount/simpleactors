@@ -38,17 +38,18 @@ public class ActorSystem {
     /**
      * A map of all running {@link Actor}s indexed by actor.
      */
-    private ConcurrentMap<Integer, Actor<?>> actors;
+    private ConcurrentMap<Integer, Actor> actors;
 
     /**
      * A map of all {@link Actor}s to the threads they run in.
      */
-    private ConcurrentMap<Actor<?>, Dispatcher> dispatchThreads;
+    private ConcurrentMap<Actor, Dispatcher> dispatchThreads;
 
     /**
      * Create a new {@link ActorSystem}.
      *
      * @param name The name of this {@link ActorSystem}.
+     * @param port The port number to listen on.
      */
     public ActorSystem(String name, int port) {
         this.name = name;
@@ -73,55 +74,34 @@ public class ActorSystem {
      * This is the {@link java.lang.reflect.InvocationHandler} used for local references to actors.
      * An instance of this class is supplied to newly constructed proxy references.
      */
-    private class LocalRefProxyHandler implements InvocationHandler {
-        private final Actor<?> actor;
-        private LocalRefProxyHandler(Actor<?> actor) { this.actor = actor; }
-        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-            // if we are trying to print out the reference, do it now.
-            if (method.getName() == "toString" && method.getParameterCount() == 0) {
-                return String.format("<%s@%s>", actor, getName());
-            }
-            // otherwise we are trying to send an message. place it in the mailbox
-            Mail m = new Mail(actor, method, args);
-            Dispatcher dispatcher = getDispatcher(actor);
-            return dispatcher.addMail(m);
+    private class LocalActor implements ActorRef {
+        private final Actor actor;
+        private Dispatcher disp;
+        public LocalActor(Actor actor) {
+            this.actor = actor;
+            this.disp = getDispatcher(actor);
+        }
+        @Override public void send(Object msg) {
+            // We cache the dispatcher. But we need to get a new one is this one is dead.
+            if (!disp.isAlive())
+                disp = getDispatcher(actor);
+            disp.dispatch(actor, msg);
         }
     }
 
     /**
-     * Create a new actor and return a reference that implements the given interface.
+     * Spawn a new actor inside of this system.
      *
-     * @param constructor This function should return a new instance of actor when called.
-     *             The easiest way is {@code MyActor::new}.
-     * @param refType This interface you this actor's reference will implement.
-     * @param <ACTOR> The type of the actor.
-     * @param <REF> The type of the actor's reference interface.
+     * @param type The class of actor to be spawned.
      * @return A reference to the newly spawned actor.
      */
-    public <ACTOR extends Actor<REF>, REF> REF spawn(Supplier<ACTOR> constructor, Class<REF> refType) {
+    public ActorRef spawn(Class<? extends Actor> type) {
         // construct our actor
-        ACTOR actor = constructor.get();
-
-        if (!refType.isAssignableFrom(actor.getClass()))
-            throw new IllegalArgumentException("The actor must implement the reference type interface.");
-
-        // load the proxy class for the reference interface
-        // classes created this way should be cached by the Proxy class
-        Class<?> proxyCls = Proxy.getProxyClass(refType.getClassLoader(), refType);
-
         try {
-            // create a new instance of the proxy class with a new InvocationHandler for this actor's actor
-            @SuppressWarnings("unchecked")
-            REF ref = (REF)proxyCls.getConstructor(InvocationHandler.class)
-                               .newInstance(new LocalRefProxyHandler(actor));
-
-            int id = nextId.getAndIncrement();
-            actors.put(id, actor);
-            actor.bind(this, ref);
-            return ref;
-        } catch (InvocationTargetException | IllegalAccessException | InstantiationException | NoSuchMethodException e) {
-            // something went wrong
-            throw new RuntimeException("Couldn't create proxy instance.", e);
+            Actor actor = type.newInstance();
+            return new LocalActor(actor);
+        } catch (IllegalAccessException | InstantiationException e) {
+            throw new IllegalArgumentException("Couldn't spawn actor of type " + type.getName(), e);
         }
     }
 
@@ -130,10 +110,6 @@ public class ActorSystem {
      */
     public void shutdown() {
         //TODO
-    }
-
-    /*package*/ Actor<?> getActorById(int id) {
-        return actors.get(id);
     }
 
     private Thread threadFactory(Runnable r) {
@@ -148,9 +124,9 @@ public class ActorSystem {
     }
 
 
-    private Dispatcher getDispatcher(Actor<?> actor) {
+    private Dispatcher getDispatcher(Actor actor) {
         Dispatcher dispatcher = dispatchThreads.get(actor);
-        if (dispatcher == null || !dispatcher.getThread().isAlive()) {
+        if (dispatcher == null || !dispatcher.isAlive()) {
             // thread per actor, easy peasy
             dispatcher = new Dispatcher(this::threadFactory);
             dispatchThreads.put(actor, dispatcher);

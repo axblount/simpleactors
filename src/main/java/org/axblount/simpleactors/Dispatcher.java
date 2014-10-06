@@ -12,6 +12,20 @@ import java.util.concurrent.TimeUnit;
  * TODO: It might not be the "best" way to do it, but extending Thread seems convenient...
  */
 public class Dispatcher implements Runnable {
+    private class Mail {
+        private final Actor actor;
+        private final Object msg;
+
+        public Mail(Actor actor, Object msg) {
+            this.actor = actor;
+            this.msg = msg;
+        }
+
+        public void deliver() {
+            actor.handle(msg);
+        }
+    }
+
     /**
      * A DispatchThread will wait for {@code DEFAULT_TIMEOUT} before closing down.
      */
@@ -41,13 +55,14 @@ public class Dispatcher implements Runnable {
     }
 
     /**
-     * Add mail to dispatch queue.
+     * Queue a message for dispatch.
      *
-     * @param m The piece of mail to be added.
+     * @param actor The concrete actor {@code msg} is being sent to.
+     * @param msg The message being sent.
      * @return {@code true} if the mail was successfully added to the queue, {@code false} otherwise.
      */
-    public boolean addMail(Mail m) {
-        return mailbox.add(m);
+    public boolean dispatch(Actor actor, Object msg) {
+        return mailbox.add(new Mail(actor, msg));
     }
 
     /**
@@ -55,6 +70,13 @@ public class Dispatcher implements Runnable {
      */
     public Thread getThread() {
         return thread;
+    }
+
+    /**
+     *
+     */
+    public boolean isAlive() {
+        return thread.isAlive();
     }
 
     @Override
