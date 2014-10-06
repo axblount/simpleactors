@@ -13,7 +13,7 @@ public class Main {
             if (msg instanceof String)
                 System.out.println("Someone said: " + msg);
             else
-                throw new RuntimeException("I don't get it...");
+                System.out.println("I don't get it...");
         }
     }
 
