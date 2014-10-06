@@ -8,7 +8,6 @@
   <property name="dist.dir" value="build/dist" />
   <property name="doc.dir" value="build/doc" />
   <property name="reports.dir" value="build/reports" />
-  <property name="main-class" value="org.axblount.simpleactors.Main" />
 
   <path id="classpath">
     <fileset dir="${lib.dir}" includes="**/*.jar" />
@@ -59,7 +58,7 @@
     <junit fork="true">
       <classpath refid="classpath.test" />
       <formatter type="brief" usefile="false" />
-      <test name="org.axblount.simpleactors.Main" />
+      <test name="org.simpleactors.Main" />
     </junit>
   </target>
 

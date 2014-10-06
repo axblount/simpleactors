@@ -1,4 +1,4 @@
-package org.axblount.simpleactors;
+package org.simpleactors;
 
 /**
  * An abstract actor.

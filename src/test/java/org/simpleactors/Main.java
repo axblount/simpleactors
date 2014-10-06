@@ -1,4 +1,4 @@
-package org.axblount.simpleactors;
+package org.simpleactors;
 
 import java.util.Random;
 import org.junit.*;

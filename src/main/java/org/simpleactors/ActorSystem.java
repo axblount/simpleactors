@@ -1,4 +1,4 @@
-package org.axblount.simpleactors;
+package org.simpleactors;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;

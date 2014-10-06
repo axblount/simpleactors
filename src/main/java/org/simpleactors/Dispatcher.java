@@ -1,4 +1,4 @@
-package org.axblount.simpleactors;
+package org.simpleactors;
 
 import java.time.Duration;
 import java.util.concurrent.BlockingQueue;
