@@ -41,13 +41,14 @@ public class Dispatcher implements Runnable {
     }
 
     /**
-     * Add mail to dispatch queue.
+     * Queue a message for dispatch.
      *
-     * @param m The piece of mail to be added.
+     * @param actor The concrete actor {@code msg} is being sent to.
+     * @param msg The message being sent.
      * @return {@code true} if the mail was successfully added to the queue, {@code false} otherwise.
      */
-    public boolean addMail(Mail m) {
-        return mailbox.add(m);
+    public boolean dispatch(ActorImpl actor, Object msg) {
+        return mailbox.add(new Mail(actor, msg));
     }
 
     /**
@@ -55,6 +56,13 @@ public class Dispatcher implements Runnable {
      */
     public Thread getThread() {
         return thread;
+    }
+
+    /**
+     *
+     */
+    public boolean isAlive() {
+        return thread.isAlive();
     }
 
     @Override
