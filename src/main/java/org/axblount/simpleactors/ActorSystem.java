@@ -38,12 +38,12 @@ public class ActorSystem {
     /**
      * A map of all running {@link Actor}s indexed by actor.
      */
-    private ConcurrentMap<Integer, ActorImpl> actors;
+    private ConcurrentMap<Integer, Actor> actors;
 
     /**
      * A map of all {@link Actor}s to the threads they run in.
      */
-    private ConcurrentMap<ActorImpl, Dispatcher> dispatchThreads;
+    private ConcurrentMap<Actor, Dispatcher> dispatchThreads;
 
     /**
      * Create a new {@link ActorSystem}.
@@ -74,18 +74,18 @@ public class ActorSystem {
      * This is the {@link java.lang.reflect.InvocationHandler} used for local references to actors.
      * An instance of this class is supplied to newly constructed proxy references.
      */
-    private class LocalActor implements Actor {
-        private final ActorImpl impl;
+    private class LocalActor implements ActorRef {
+        private final Actor actor;
         private Dispatcher disp;
-        public LocalActor(ActorImpl impl) {
-            this.impl = impl;
-            this.disp = getDispatcher(impl);
+        public LocalActor(Actor actor) {
+            this.actor = actor;
+            this.disp = getDispatcher(actor);
         }
         @Override public void send(Object msg) {
             // We cache the dispatcher. But we need to get a new one is this one is dead.
             if (!disp.isAlive())
-                disp = getDispatcher(impl);
-            disp.dispatch(impl, msg);
+                disp = getDispatcher(actor);
+            disp.dispatch(actor, msg);
         }
     }
 
@@ -95,11 +95,11 @@ public class ActorSystem {
      * @param type The class of actor to be spawned.
      * @return A reference to the newly spawned actor.
      */
-    public Actor spawn(Class<? extends ActorImpl> type) {
+    public ActorRef spawn(Class<? extends Actor> type) {
         // construct our actor
         try {
-            ActorImpl impl = type.newInstance();
-            return new LocalActor(impl);
+            Actor actor = type.newInstance();
+            return new LocalActor(actor);
         } catch (IllegalAccessException | InstantiationException e) {
             throw new IllegalArgumentException("Couldn't spawn actor of type " + type.getName(), e);
         }
@@ -124,7 +124,7 @@ public class ActorSystem {
     }
 
 
-    private Dispatcher getDispatcher(ActorImpl actor) {
+    private Dispatcher getDispatcher(Actor actor) {
         Dispatcher dispatcher = dispatchThreads.get(actor);
         if (dispatcher == null || !dispatcher.isAlive()) {
             // thread per actor, easy peasy

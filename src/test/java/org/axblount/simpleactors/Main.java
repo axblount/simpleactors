@@ -4,7 +4,7 @@ import java.util.Random;
 import org.junit.*;
 
 public class Main {
-    public static class A extends ActorImpl {
+    public static class A extends Actor {
         @Override public void handle(Object msg) {
             if (msg instanceof String)
                 System.out.println("I got: " + msg);
@@ -22,7 +22,7 @@ public class Main {
         Random r = new Random();
 
         int N = 3;
-        Actor[] refs = new Actor[N];
+        ActorRef[] refs = new ActorRef[N];
 
         for (int i = 0; i < N; i++)
             refs[i] = sys.spawn(A.class);
