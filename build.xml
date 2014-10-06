@@ -59,7 +59,7 @@
     <junit fork="true">
       <classpath refid="classpath.test" />
       <formatter type="brief" usefile="false" />
-      <test name="org.axblount.simpleactors.test.Main" />
+      <test name="org.axblount.simpleactors.Main" />
     </junit>
   </target>
 
