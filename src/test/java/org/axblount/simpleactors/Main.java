@@ -1,10 +1,8 @@
 package org.axblount.simpleactors;
 
 import java.util.Random;
+import org.junit.*;
 
-/**
- * Created by alex on 10/2/14.
- */
 public class Main {
     public static interface I {
         public default void say(String s) {
@@ -24,7 +22,8 @@ public class Main {
         }
     }
 
-    public static void main(String[] args) {
+    @Test
+    public void main() {
         ActorSystem sys = new ActorSystem("test");
         Random r = new Random();
 

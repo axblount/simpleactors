@@ -5,8 +5,9 @@
   <property name="build.dir" value="build" />
   <property name="classes.dir" value="build/classes" />
   <property name="classes-test.dir" value="build/classes-test" />
-  <property name="dest.dir" value="build/dest" />
+  <property name="dist.dir" value="build/dist" />
   <property name="doc.dir" value="build/doc" />
+  <property name="reports.dir" value="build/reports" />
   <property name="main-class" value="org.axblount.simpleactors.Main" />
 
   <path id="classpath">
@@ -14,7 +15,7 @@
   </path>
 
   <path id="classpath.test">
-    <fileset dir="${dest.dir}" includes="**/*.jar" />
+    <fileset dir="${dist.dir}" includes="**/*.jar" />
     <pathelement location="${classes-test.dir}" />
     <path refid="classpath" />
   </path>
@@ -39,22 +40,13 @@
   </target>
 
   <target name="build" depends="compile">
-    <mkdir dir="${dest.dir}" />
-    <jar destfile="${dest.dir}/${ant.project.name}.jar"
-       basedir="${classes.dir}">
-      <manifest>
-        <attribute name="Main-Class" value="${main-class}" />
-      </manifest>
+    <mkdir dir="${dist.dir}" />
+    <jar destfile="${dist.dir}/${ant.project.name}.jar"
+         basedir="${classes.dir}">
     </jar>
   </target>
 
-  <target name="run" depends="build">
-    <java jar="${dest.dir}/${ant.project.name}.jar" fork="true" />
-  </target>
-
-  <target name="clean-build" depends="clean,build" />
-
-  <target name="main" depends="clean,run" />
+  <target name="rebuild" depends="clean,build" />
 
   <target name="compile-test" depends="build">
     <mkdir dir="${classes-test.dir}" />
@@ -63,7 +55,16 @@
            classpathref="classpath.test" />
   </target>
 
+  <target name="main" depends="compile-test">
+    <junit fork="true">
+      <classpath refid="classpath.test" />
+      <formatter type="brief" usefile="false" />
+      <test name="org.axblount.simpleactors.test.Main" />
+    </junit>
+  </target>
+
   <target name="test" depends="compile-test">
+    <mkdir dir="${reports.dir}" />
     <junit>
       <classpath refid="classpath.test" />
       <formatter type="brief" usefile="false" />

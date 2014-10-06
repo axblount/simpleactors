@@ -1,13 +1,9 @@
-package org.axblount.simpleactors.test;
+package org.axblount.simpleactors;
 
-import org.axblount.simpleactors.ActorSystem;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import static org.hamcrest.CoreMatchers.*;
 
-/**
- * Created by alex on 10/4/14.
- */
 public class ActorSystemTest  {
     @Test
     public void testName() {
