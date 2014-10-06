@@ -4,7 +4,7 @@ Simple Actors
 
 A simple actor framework for java.
 
-```
+```java
 import org.axblount.simpleactors;
 
 public class Main {
