@@ -1,13 +1,7 @@
 <project name="simpleactors" basedir="." default="main">
-  <property name="src.dir" value="src/main/java" />
-  <property name="src-test.dir" value="src/test/java" />
-  <property name="lib.dir" value="lib" />
-  <property name="build.dir" value="build" />
-  <property name="classes.dir" value="build/classes" />
-  <property name="classes-test.dir" value="build/classes-test" />
-  <property name="dist.dir" value="build/dist" />
-  <property name="doc.dir" value="build/doc" />
-  <property name="reports.dir" value="build/reports" />
+  <property file="build.properties" />
+  <property name="jar.file"
+            value="${dist.dir}/${ant.project.name}-${version}.jar" />
 
   <path id="classpath">
     <fileset dir="${lib.dir}" includes="**/*.jar" />
@@ -30,8 +24,9 @@
   <target name="compile">
     <mkdir dir="${classes.dir}" />
     <javac srcdir="${src.dir}"
-         destdir="${classes.dir}"
-         classpathref="classpath" />
+           destdir="${classes.dir}"
+           classpathref="classpath"
+           target="1.8" />
   </target>
 
   <target name="doc">
@@ -40,8 +35,11 @@
 
   <target name="build" depends="compile">
     <mkdir dir="${dist.dir}" />
-    <jar destfile="${dist.dir}/${ant.project.name}.jar"
+    <jar destfile="${jar.file}"
          basedir="${classes.dir}">
+      <manifest>
+        <attribute name="Implementation-Version" value="${version}" />
+      </manifest>
     </jar>
   </target>
 
