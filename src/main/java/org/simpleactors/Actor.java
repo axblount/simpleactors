@@ -44,10 +44,4 @@ public abstract class Actor {
     }
 
     public abstract void handle(Object msg);
-
-    /**
-     * TODO
-     * @param e
-     */
-    protected abstract void exceptionHandler(Throwable e);
 }
