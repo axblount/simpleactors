@@ -1,13 +1,8 @@
 package org.simpleactors;
 
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Supplier;
 
 /**
  * An {@link org.axblount.simpleactors.ActorSystem} is the context in which actors run.
@@ -43,7 +38,7 @@ public class ActorSystem {
     /**
      * A map of all {@link Actor}s to the threads they run in.
      */
-    private ConcurrentMap<Actor, Dispatcher> dispatchThreads;
+    private ConcurrentMap<Actor, WorkerThread> workerThreads;
 
     /**
      * Create a new {@link ActorSystem}.
@@ -56,7 +51,7 @@ public class ActorSystem {
         this.port = port;
         nextId = new AtomicInteger(1000);
         actors = new ConcurrentHashMap<>();
-        dispatchThreads = new ConcurrentHashMap<>();
+        workerThreads = new ConcurrentHashMap<>();
     }
 
     public ActorSystem(String name) {
@@ -76,16 +71,16 @@ public class ActorSystem {
      */
     private class LocalActorRef implements ActorRef {
         private final Actor actor;
-        private Dispatcher disp;
+        private WorkerThread worker;
         public LocalActorRef(Actor actor) {
             this.actor = actor;
-            this.disp = getDispatcher(actor);
+            this.worker = getWorkerThread(actor);
         }
         @Override public void send(Object msg) {
             // We cache the dispatcher. But we need to get a new one is this one is dead.
-            if (!disp.isAlive())
-                disp = getDispatcher(actor);
-            disp.dispatch(actor, msg);
+            if (!worker.isAlive())
+                worker = getWorkerThread(actor);
+            worker.dispatch(actor, msg);
         }
     }
 
@@ -96,7 +91,6 @@ public class ActorSystem {
      * @return A reference to the newly spawned actor.
      */
     public ActorRef spawn(Class<? extends Actor> type) {
-        // construct our actor
         Actor actor;
         try {
             actor = type.newInstance();
@@ -121,23 +115,22 @@ public class ActorSystem {
 
     private Thread threadFactory(Runnable r) {
         Thread t = new Thread(r);
-        t.setUncaughtExceptionHandler(this::uncaughtException);
+        t.setUncaughtExceptionHandler(this::uncaughtThreadException);
         return t;
     }
 
-    private void uncaughtException(Thread t, Throwable e) {
+    private void uncaughtThreadException(Thread t, Throwable e) {
         System.out.println("***The actor system <" + name + "> has caught an error***");
         e.printStackTrace();
     }
 
-
-    private Dispatcher getDispatcher(Actor actor) {
-        Dispatcher dispatcher = dispatchThreads.get(actor);
-        if (dispatcher == null || !dispatcher.isAlive()) {
+    private WorkerThread getWorkerThread(Actor actor) {
+        WorkerThread worker = workerThreads.get(actor);
+        if (worker == null || !worker.isAlive()) {
             // thread per actor, easy peasy
-            dispatcher = new Dispatcher(this::threadFactory);
-            dispatchThreads.put(actor, dispatcher);
+            worker = new WorkerThread(this::threadFactory);
+            workerThreads.put(actor, worker);
         }
-        return dispatcher;
+        return worker;
     }
 }

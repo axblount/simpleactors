@@ -44,4 +44,6 @@ public abstract class Actor {
     }
 
     public abstract void handle(Object msg);
+
+    public void handleException(Exception e) { }
 }

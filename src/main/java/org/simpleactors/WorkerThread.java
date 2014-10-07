@@ -11,18 +11,14 @@ import java.util.concurrent.TimeUnit;
  *
  * TODO: It might not be the "best" way to do it, but extending Thread seems convenient...
  */
-public class Dispatcher implements Runnable {
+public class WorkerThread implements Runnable {
     private class Mail {
-        private final Actor actor;
-        private final Object msg;
+        final Actor actor;
+        final Object msg;
 
         public Mail(Actor actor, Object msg) {
             this.actor = actor;
             this.msg = msg;
-        }
-
-        public void deliver() {
-            actor.handle(msg);
         }
     }
 
@@ -46,7 +42,7 @@ public class Dispatcher implements Runnable {
      *
      * @param threadFactory This will be used to generate the thread this Dispatcher will run in.
      */
-    public Dispatcher(ThreadFactory threadFactory) {
+    public WorkerThread(ThreadFactory threadFactory) {
         mailbox = new LinkedBlockingQueue<>();
         thread = threadFactory.newThread(this);
         if (thread == null)
@@ -84,9 +80,13 @@ public class Dispatcher implements Runnable {
         try {
             while (true) {
                 Mail m = mailbox.poll(DEFAULT_TIMEOUT.getSeconds(), TimeUnit.SECONDS);
-                if (m == null)
-                    return; // timed out
-                m.deliver();
+                if (m == null) return; // timed out
+
+                try {
+                    m.actor.handle(m.msg);
+                } catch (Exception e) {
+                    m.actor.handleException(e);
+                }
             }
         } catch (InterruptedException e) {
             // end
