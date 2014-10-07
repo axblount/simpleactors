@@ -74,10 +74,10 @@ public class ActorSystem {
      * This is the {@link java.lang.reflect.InvocationHandler} used for local references to actors.
      * An instance of this class is supplied to newly constructed proxy references.
      */
-    private class LocalActor implements ActorRef {
+    private class LocalActorRef implements ActorRef {
         private final Actor actor;
         private Dispatcher disp;
-        public LocalActor(Actor actor) {
+        public LocalActorRef(Actor actor) {
             this.actor = actor;
             this.disp = getDispatcher(actor);
         }
@@ -97,12 +97,19 @@ public class ActorSystem {
      */
     public ActorRef spawn(Class<? extends Actor> type) {
         // construct our actor
+        Actor actor;
         try {
-            Actor actor = type.newInstance();
-            return new LocalActor(actor);
+            actor = type.newInstance();
         } catch (IllegalAccessException | InstantiationException e) {
             throw new IllegalArgumentException("Couldn't spawn actor of type " + type.getName(), e);
         }
+
+        int id = nextId.getAndIncrement();
+        actors.put(id, actor);
+        ActorRef self = new LocalActorRef(actor);
+        actor.bind(this, self);
+
+        return self;
     }
 
     /**
