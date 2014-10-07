@@ -7,6 +7,17 @@ package org.simpleactors;
  */
 public abstract class Actor {
     /**
+     * NOBODY is the default message sender when none is specified.
+     * Messages sent to NOBODY are not sent or acknowledged in any way.
+     * NOBODY eats messages.
+     */
+    public static final ActorRef NOBODY = new ActorRef() {
+        @Override public void send(Object msg, ActorRef sender) { }
+        @Override public int getId() { return 0; }
+        @Override public String toString() { return "<NOBODY>"; }
+    };
+
+    /**
      * The {@link ActorSystem} that this {@link Actor} runs inside of.
      */
     private ActorSystem system = null;
@@ -43,7 +54,7 @@ public abstract class Actor {
         this.self = self;
     }
 
-    public abstract void handle(Object msg);
+    public abstract void handle(Object msg, ActorRef sender);
 
     public void handleException(Exception e) { }
 }

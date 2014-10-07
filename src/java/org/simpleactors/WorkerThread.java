@@ -15,10 +15,12 @@ public class WorkerThread implements Runnable {
     private class Mail {
         final Actor actor;
         final Object msg;
+        final ActorRef sender;
 
-        public Mail(Actor actor, Object msg) {
+        public Mail(Actor actor, Object msg, ActorRef sender) {
             this.actor = actor;
             this.msg = msg;
+            this.sender = sender;
         }
     }
 
@@ -57,8 +59,8 @@ public class WorkerThread implements Runnable {
      * @param msg The message being sent.
      * @return {@code true} if the mail was successfully added to the queue, {@code false} otherwise.
      */
-    public boolean dispatch(Actor actor, Object msg) {
-        return mailbox.add(new Mail(actor, msg));
+    public boolean dispatch(Actor actor, Object msg, ActorRef sender) {
+        return mailbox.add(new Mail(actor, msg, sender));
     }
 
     /**
@@ -83,7 +85,7 @@ public class WorkerThread implements Runnable {
                 if (m == null) return; // timed out
 
                 try {
-                    m.actor.handle(m.msg);
+                    m.actor.handle(m.msg, m.sender);
                 } catch (Exception e) {
                     m.actor.handleException(e);
                 }

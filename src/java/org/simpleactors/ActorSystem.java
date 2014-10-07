@@ -71,16 +71,28 @@ public class ActorSystem {
      */
     private class LocalActorRef implements ActorRef {
         private final Actor actor;
+        private final int id;
         private WorkerThread worker;
-        public LocalActorRef(Actor actor) {
+
+        public LocalActorRef(Actor actor, int id) {
             this.actor = actor;
+            this.id = id;
             this.worker = getWorkerThread(actor);
         }
-        @Override public void send(Object msg) {
+
+        @Override public void send(Object msg, ActorRef sender) {
             // We cache the dispatcher. But we need to get a new one is this one is dead.
             if (!worker.isAlive())
                 worker = getWorkerThread(actor);
-            worker.dispatch(actor, msg);
+            worker.dispatch(actor, msg, sender);
+        }
+
+        @Override public int getId() {
+            return this.id;
+        }
+
+        @Override public String toString() {
+            return String.format("<%s@%s>", id, getName());
         }
     }
 
@@ -100,7 +112,7 @@ public class ActorSystem {
 
         int id = nextId.getAndIncrement();
         actors.put(id, actor);
-        ActorRef self = new LocalActorRef(actor);
+        ActorRef self = new LocalActorRef(actor, id);
         actor.bind(this, self);
 
         return self;
